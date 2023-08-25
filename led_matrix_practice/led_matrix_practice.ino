@@ -1,3 +1,5 @@
+// Using Arduiono nano every, MPU6050 gyro module, and two 8x8 LED matrixes
+
 #include <LedControl.h>
 #include <MPU6050_tockn.h>
 #include <Arduino.h>

@@ -1,3 +1,6 @@
+// Using Arduiono nano every, MPU6050 gyro module, and two 8x8 LED matrixes
+
+
 #include <LedControl.h>
 #include <MPU6050_tockn.h>
 #include <Arduino.h>
@@ -26,15 +29,21 @@ void setup() {
   Serial.begin(9600);
 }
 
-
+int delayTime = 100;
 
 void loop() {
-  int counter = 0;
 
-  for (int i = 0; i < 8; i++) {
-    counter = counter + 1;
-    lc.setLed(0, 7 - i, counter, true);
-    delay(100);
+  for (int i = 0; i < 8; i += 2) {
+    for (int j = 7; j >= 0; j--) {
+      lc.setLed(0, j, i, true);
+      delay(delayTime);
+      lc.setLed(0, j, i, false);
+    }
+    for (int j = 0; j < 8; j++) {
+      lc.setLed(0, j, i+1, true);
+      delay(delayTime);
+      lc.setLed(0, j, i+1, false);
+    }
   }
 
 
