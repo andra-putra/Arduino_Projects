@@ -4,6 +4,9 @@
 #include <LedControl.h>
 #include <MPU6050_tockn.h>
 #include <Arduino.h>
+#include <Wire.h>
+
+MPU6050 mpu6050(Wire);
 
 int PIN_DATAIN = 5;
 int PIN_CLK = 6;
@@ -27,6 +30,17 @@ void setup() {
   lc.clearDisplay(1);
 
   Serial.begin(9600);
+  Wire.begin();
+
+  mpu6050.begin();
+
+  mpu6050.update();
+
+  if (mpu6050.getAccX() == 0 && mpu6050.getAccY() == 0 && mpu6050.getAccZ() == 0) {
+    Serial.println("MPU6050 Connection failed or device is perfectly still");
+  } else {
+    Serial.println("MPU6050 Connection successful");
+  }
 }
 
 int delayTime = 100;
@@ -40,9 +54,9 @@ void loop() {
       lc.setLed(0, j, i, false);
     }
     for (int j = 0; j < 8; j++) {
-      lc.setLed(0, j, i+1, true);
+      lc.setLed(0, j, i + 1, true);
       delay(delayTime);
-      lc.setLed(0, j, i+1, false);
+      lc.setLed(0, j, i + 1, false);
     }
   }
 
