@@ -16,6 +16,37 @@ LedControl lc = LedControl(PIN_DATAIN, PIN_CLK, PIN_LOAD, 2);  // The '2' indica
 
 float accX, accY, accZ;
 
+// Ball starting position and movement sens
+int currentRow = 7;
+int currentCol = 0;
+float moveSens = 0.1;
+
+// Defining walls for the LED matrix
+// TODO: Integrate matrix for ball movement too, including edge checks etc.
+#define WALL 1
+#define EMPTY 0
+int matrix[8][8] = {
+  { EMPTY, EMPTY, EMPTY, WALL, EMPTY, EMPTY, EMPTY, EMPTY },
+  { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, WALL, EMPTY },
+  { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, EMPTY, EMPTY },
+  { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, EMPTY, WALL },
+  { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, EMPTY, EMPTY },
+  { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, WALL, EMPTY },
+  { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, EMPTY, EMPTY },
+  { EMPTY, WALL, EMPTY, EMPTY, EMPTY, WALL, EMPTY, EMPTY }
+};
+
+unsigned long previousMillisLED = 0;     // Store when you last updated the LED matrix
+unsigned long previousMillisSerial = 0;  // Store when you last printed to the Serial console
+
+const long intervalLED = 50;       // The LED matrix updates every 100ms
+const long intervalSerial = 1000;  // The Serial console prints every 1000ms
+const long blinkInterval = 500;    // Ball blinking interval
+
+unsigned long prevMillisBlink = 0;
+bool ballLedState = true;  // True = ball on, false = ball off
+
+
 void setup() {
   // put your setup code here, to run once:
   // Wake up the max7219
@@ -44,11 +75,10 @@ void setup() {
   }
 }
 
-int currentRow = 3;
-int currentCol = 3;
-float moveSens = 0.1;
 
-// Move functions still very basic. TODO: Acceleration and dynamic speed
+
+// Move functions still very basic.
+// TODO: Acceleration and dynamic speed
 void moveRight(int &row) {
   row--;
 }
@@ -67,22 +97,32 @@ void moveDown(int &col) {
 
 void updateLED() {
   // Checks Y axis
-  if (accY >= moveSens && currentRow > 0) {
+  if (accY >= moveSens && currentRow > 0 && matrix[currentRow - 1][currentCol] != WALL) {
     moveRight(currentRow);
-  } else if (accY <= -moveSens && currentRow < 7) {
+  } else if (accY <= -moveSens && currentRow < 7 && matrix[currentRow + 1][currentCol] != WALL) {
     moveLeft(currentRow);
   }
 
   // Checks Z axis
-  if (accZ >= moveSens && currentCol < 7) {
+  if (accZ >= moveSens && currentCol < 7 && matrix[currentRow][currentCol + 1] != WALL) {
     moveDown(currentCol);
-  } else if (accZ <= -moveSens && currentCol > 0) {
+  } else if (accZ <= -moveSens && currentCol > 0 && matrix[currentRow][currentCol - 1] != WALL) {
     moveUp(currentCol);
   }
 
-  lc.setLed(0, currentRow, currentCol, true);
-  delay(50);
-  lc.setLed(0, currentRow, currentCol, false);
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 8; j++) {
+      if (i == currentRow && j == currentCol) {
+        lc.setLed(0, i, j, ballLedState);  // Ball position
+        // delay(250);
+        // lc.setLed(0, i, j, false);
+      } else if (matrix[i][j] == WALL) {
+        lc.setLed(0, i, j, true);  // Wall position
+      } else {
+        lc.setLed(0, i, j, false);  // Empty
+      }
+    }
+  }
 }
 
 void printSerial() {
@@ -100,11 +140,6 @@ void printSerial() {
   Serial.println();
 }
 
-unsigned long previousMillisLED = 0;     // Store when you last updated the LED matrix
-unsigned long previousMillisSerial = 0;  // Store when you last printed to the Serial console
-
-const long intervalLED = 50;      // The LED matrix updates every 100ms
-const long intervalSerial = 1000;  // The Serial console prints every 1000ms
 
 
 void loop() {
@@ -116,15 +151,22 @@ void loop() {
   accY = gyro.getAccY();
   accZ = gyro.getAccZ();
 
-  // Update LED matrix every 100ms
+  // Updates matrix LED etc.
   if (currentMillis - previousMillisLED >= intervalLED) {
     previousMillisLED = currentMillis;
     updateLED();
   }
 
   // Print to Serial every 1000ms
-  if (currentMillis - previousMillisSerial >= intervalSerial) {
-    previousMillisSerial = currentMillis;
-    printSerial();
+  // if (currentMillis - previousMillisSerial >= intervalSerial) {
+  //   previousMillisSerial = currentMillis;
+  //   printSerial();
+  // }
+
+  // Manage LED blinking for ball
+  if (currentMillis - prevMillisBlink >= blinkInterval) {
+    prevMillisBlink = currentMillis;
+    ballLedState = !ballLedState;  // Toggle LED state
+    lc.setLed(0, currentRow, currentCol, ballLedState);
   }
 }
