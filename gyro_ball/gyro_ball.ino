@@ -1,30 +1,29 @@
-// Using Arduiono nano every, MPU6050 gyro module, and two 8x8 LED matrixes
-
-
+// Libraries
 #include <LedControl.h>
 #include <MPU6050_tockn.h>
 #include <Arduino.h>
 #include <Wire.h>
 
-MPU6050 gyro(Wire);
+// Constants and Macros
+#define WALL 1
+#define EMPTY 0
 
+// Global Variables: Pins
 int PIN_DATAIN = 5;
 int PIN_CLK = 6;
 int PIN_LOAD = 4;
 
-LedControl lc = LedControl(PIN_DATAIN, PIN_CLK, PIN_LOAD, 2);  // The '2' indicates two matrices are chained.
+// Global Variables: Objects
+MPU6050 gyro(Wire);
+LedControl lc = LedControl(PIN_DATAIN, PIN_CLK, PIN_LOAD, 2);  // Chained matrices
 
+// Global Variables: Acceleration and Position
 float accX, accY, accZ;
-
-// Ball starting position and movement sens
-int currentRow = 7;
+int currentRow = 7;  // Ball starting position
 int currentCol = 0;
-float moveSens = 0.1;
+float moveSens = 0.1;  // Movement sensitivity
 
-// Defining walls for the LED matrix
-// TODO: Integrate matrix for ball movement too, including edge checks etc.
-#define WALL 1
-#define EMPTY 0
+// Maze Matrix
 int matrix[8][8] = {
   { EMPTY, EMPTY, EMPTY, WALL, EMPTY, EMPTY, EMPTY, EMPTY },
   { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, WALL, EMPTY },
@@ -36,28 +35,31 @@ int matrix[8][8] = {
   { EMPTY, WALL, EMPTY, EMPTY, EMPTY, WALL, EMPTY, EMPTY }
 };
 
-unsigned long previousMillisLED = 0;     // Store when you last updated the LED matrix
-unsigned long previousMillisSerial = 0;  // Store when you last printed to the Serial console
-
-const long intervalLED = 50;       // The LED matrix updates every 100ms
-const long intervalSerial = 1000;  // The Serial console prints every 1000ms
-const long blinkInterval = 500;    // Ball blinking interval
-
+// Timers and Intervals
+unsigned long previousMillisLED = 0;
+unsigned long previousMillisSerial = 0;
 unsigned long prevMillisBlink = 0;
-bool ballLedState = true;  // True = ball on, false = ball off
+const long intervalLED = 50;
+const long intervalSerial = 1000;
+const long blinkInterval = 500;
 
+// Ball LED Blink State
+bool ballLedState = true;
 
+// Function Prototypes
+void moveRight(int &row);
+void moveLeft(int &row);
+void moveUp(int &col);
+void moveDown(int &col);
+void updateLED();
+void printSerial();
+
+// Initialization
 void setup() {
-  // put your setup code here, to run once:
-  // Wake up the max7219
   lc.shutdown(0, false);
   lc.shutdown(1, false);
-
-  // Set the brightness. Value can be between 0 and 15
   lc.setIntensity(0, 1);
   lc.setIntensity(1, 1);
-
-  // Clear the display
   lc.clearDisplay(0);
   lc.clearDisplay(1);
 
@@ -65,7 +67,6 @@ void setup() {
   Wire.begin();
 
   gyro.begin();
-
   gyro.update();
 
   if (gyro.getAccX() == 0 && gyro.getAccY() == 0 && gyro.getAccZ() == 0) {
@@ -75,22 +76,37 @@ void setup() {
   }
 }
 
+// Main Loop
+void loop() {
+  unsigned long currentMillis = millis();
 
+  gyro.update();
+  accX = gyro.getAccX();
+  accY = gyro.getAccY();
+  accZ = gyro.getAccZ();
 
-// Move functions still very basic.
-// TODO: Acceleration and dynamic speed
+  if (currentMillis - previousMillisLED >= intervalLED) {
+    previousMillisLED = currentMillis;
+    updateLED();
+  }
+
+  if (currentMillis - prevMillisBlink >= blinkInterval) {
+    prevMillisBlink = currentMillis;
+    ballLedState = !ballLedState;  // Toggle ball LED state
+    lc.setLed(0, currentRow, currentCol, ballLedState);
+  }
+}
+
+// Function Definitions
 void moveRight(int &row) {
   row--;
 }
-
 void moveLeft(int &row) {
   row++;
 }
-
 void moveUp(int &col) {
   col--;
 }
-
 void moveDown(int &col) {
   col++;
 }
@@ -110,6 +126,8 @@ void updateLED() {
     moveUp(currentCol);
   }
 
+
+  // LED Update logic
   for (int i = 0; i < 8; i++) {
     for (int j = 0; j < 8; j++) {
       if (i == currentRow && j == currentCol) {
@@ -126,6 +144,7 @@ void updateLED() {
 }
 
 void printSerial() {
+  // Serial printing logic for debug
   Serial.print("AccX: ");
   Serial.println(accX);
   Serial.print("AccY: ");
@@ -138,35 +157,4 @@ void printSerial() {
   Serial.print("Current col: ");
   Serial.println(currentCol);
   Serial.println();
-}
-
-
-
-void loop() {
-  unsigned long currentMillis = millis();
-
-  gyro.update();
-
-  accX = gyro.getAccX();
-  accY = gyro.getAccY();
-  accZ = gyro.getAccZ();
-
-  // Updates matrix LED etc.
-  if (currentMillis - previousMillisLED >= intervalLED) {
-    previousMillisLED = currentMillis;
-    updateLED();
-  }
-
-  // Print to Serial every 1000ms
-  // if (currentMillis - previousMillisSerial >= intervalSerial) {
-  //   previousMillisSerial = currentMillis;
-  //   printSerial();
-  // }
-
-  // Manage LED blinking for ball
-  if (currentMillis - prevMillisBlink >= blinkInterval) {
-    prevMillisBlink = currentMillis;
-    ballLedState = !ballLedState;  // Toggle LED state
-    lc.setLed(0, currentRow, currentCol, ballLedState);
-  }
 }
