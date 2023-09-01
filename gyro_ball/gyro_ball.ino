@@ -19,21 +19,35 @@ LedControl lc = LedControl(PIN_DATAIN, PIN_CLK, PIN_LOAD, 2);  // Chained matric
 
 // Global Variables: Acceleration and Position
 float accX, accY, accZ;
-int currentRow = 7;  // Ball starting position
+int currentRow = 14;  // Ball starting position
 int currentCol = 0;
 float moveSens = 0.1;  // Movement sensitivity
 
 // Maze Matrix
-int matrix[8][8] = {
-  { EMPTY, EMPTY, EMPTY, WALL, EMPTY, EMPTY, EMPTY, EMPTY },
-  { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, WALL, EMPTY },
-  { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, EMPTY, EMPTY },
-  { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, EMPTY, WALL },
-  { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, EMPTY, EMPTY },
-  { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, WALL, EMPTY },
-  { EMPTY, WALL, EMPTY, WALL, EMPTY, WALL, EMPTY, EMPTY },
-  { EMPTY, WALL, EMPTY, EMPTY, EMPTY, WALL, EMPTY, EMPTY }
+int matrix[16][8] = {
+
+  // Second Matrix
+  { WALL, WALL, WALL, WALL, WALL, WALL, WALL, WALL },
+  { WALL, EMPTY, EMPTY, WALL, EMPTY, WALL, EMPTY, EMPTY },
+  { WALL, WALL, EMPTY, EMPTY, EMPTY, WALL, EMPTY, WALL },
+  { WALL, EMPTY, EMPTY, WALL, EMPTY, EMPTY, EMPTY, WALL },
+  { WALL, EMPTY, WALL, WALL, WALL, WALL, EMPTY, WALL },
+  { WALL, EMPTY, WALL, EMPTY, EMPTY, WALL, WALL, WALL },
+  { WALL, EMPTY, WALL, EMPTY, WALL, WALL, EMPTY, WALL },
+  { WALL, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, WALL },
+  // First Matrix
+  { WALL, EMPTY, EMPTY, WALL, EMPTY, EMPTY, WALL, WALL },
+  { WALL, EMPTY, WALL, WALL, WALL, EMPTY, EMPTY, WALL },
+  { WALL, WALL, WALL, EMPTY, WALL, WALL, EMPTY, WALL },
+  { WALL, EMPTY, EMPTY, EMPTY, EMPTY, WALL, EMPTY, WALL },
+  { WALL, EMPTY, WALL, WALL, EMPTY, EMPTY, EMPTY, WALL },
+  { WALL, EMPTY, WALL, EMPTY, EMPTY, WALL, EMPTY, WALL },
+  { EMPTY, EMPTY, WALL, EMPTY, EMPTY, WALL, EMPTY, WALL },
+  { WALL, WALL, WALL, WALL, WALL, WALL, WALL, WALL }
+
 };
+
+
 
 // Timers and Intervals
 unsigned long previousMillisLED = 0;
@@ -41,7 +55,7 @@ unsigned long previousMillisSerial = 0;
 unsigned long prevMillisBlink = 0;
 const long intervalLED = 50;
 const long intervalSerial = 1000;
-const long blinkInterval = 500;
+const long blinkInterval = 1;
 
 // Ball LED Blink State
 bool ballLedState = true;
@@ -78,23 +92,15 @@ void setup() {
 
 // Main Loop
 void loop() {
-  unsigned long currentMillis = millis();
+
 
   gyro.update();
   accX = gyro.getAccX();
   accY = gyro.getAccY();
   accZ = gyro.getAccZ();
 
-  if (currentMillis - previousMillisLED >= intervalLED) {
-    previousMillisLED = currentMillis;
-    updateLED();
-  }
 
-  if (currentMillis - prevMillisBlink >= blinkInterval) {
-    prevMillisBlink = currentMillis;
-    ballLedState = !ballLedState;  // Toggle ball LED state
-    lc.setLed(0, currentRow, currentCol, ballLedState);
-  }
+  updateLED();
 }
 
 // Function Definitions
@@ -112,10 +118,18 @@ void moveDown(int &col) {
 }
 
 void updateLED() {
+  unsigned long currentMillis = millis();
+
+  // Update the ball's blink state
+  if (currentMillis - prevMillisBlink >= blinkInterval) {
+    prevMillisBlink = currentMillis;
+    ballLedState = !ballLedState;  // Toggle ball LED state
+  }
+
   // Checks Y axis
   if (accY >= moveSens && currentRow > 0 && matrix[currentRow - 1][currentCol] != WALL) {
     moveRight(currentRow);
-  } else if (accY <= -moveSens && currentRow < 7 && matrix[currentRow + 1][currentCol] != WALL) {
+  } else if (accY <= -moveSens && currentRow < 15 && matrix[currentRow + 1][currentCol] != WALL) {
     moveLeft(currentRow);
   }
 
@@ -128,16 +142,26 @@ void updateLED() {
 
 
   // LED Update logic
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < 16; i++) {
     for (int j = 0; j < 8; j++) {
       if (i == currentRow && j == currentCol) {
-        lc.setLed(0, i, j, ballLedState);  // Ball position
-        // delay(250);
-        // lc.setLed(0, i, j, false);
+        if (i < 8) {  // If Ball is in second matrix
+          lc.setLed(1, i, j, ballLedState);
+        } else {  // If Ball is in first matrix
+          lc.setLed(0, i - 8, j, ballLedState);
+        }
       } else if (matrix[i][j] == WALL) {
-        lc.setLed(0, i, j, true);  // Wall position
+        if (i < 8) {  // Wall position on second matrix
+          lc.setLed(1, i, j, true);
+        } else {  // Wall position on first matrix
+          lc.setLed(0, i - 8, j, true);
+        }
       } else {
-        lc.setLed(0, i, j, false);  // Empty
+        if (i < 8) {
+          lc.setLed(1, i, j, false);  // Empty on second matrix
+        } else {
+          lc.setLed(0, i - 8, j, false);  // Empty on first matrix
+        }
       }
     }
   }
